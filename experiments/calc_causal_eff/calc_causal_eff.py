@@ -3,29 +3,24 @@ import numpy as np
 from dowhy import CausalModel
 import dowhy.datasets
 
-import timeit
+from utils.time import time_func
 
 GIVE_GRAPH = True
+RANDOM_SEED = 0
+WORKERS = 4
 
-def time_func(func, kargs={}):
-    start_time = timeit.default_timer()
-    res = func(**kargs)
-    elapsed_time = timeit.default_timer() - start_time
-    print("Execution time of", func.__name__, ":", elapsed_time, "seconds")
-    
-    return res
 
 def main():
 
     data = time_func(dowhy.datasets.linear_dataset, {
         "beta": 10,
-        "num_common_causes": 2,
-        "num_instruments": 0,
+        "num_common_causes": 5,
+        "num_instruments": 2,
         "num_effect_modifiers": 1,
         "num_samples": 5_000,
         "treatment_is_binary": True,
         "stddev_treatment_noise": 10,
-        "num_discrete_common_causes": 1
+        "num_discrete_common_causes": 1,
     }
     )
 
@@ -64,20 +59,20 @@ def main():
     estimate_ate = time_func(model.estimate_effect,
             {
             "identified_estimand":identified_estimand,
-            "method_name":"backdoor.propensity_score_matching"
+            "method_name":"backdoor.propensity_score_stratification"
         }
     )
     estimate_att = time_func(model.estimate_effect,
             {
             "identified_estimand":identified_estimand,
-            "method_name":"backdoor.propensity_score_matching",
+            "method_name":"backdoor.propensity_score_stratification",
             "target_units":"att"
         }
     )
     estimate_atc = time_func(model.estimate_effect,
             {
             "identified_estimand":identified_estimand,
-            "method_name":"backdoor.propensity_score_matching",
+            "method_name":"backdoor.propensity_score_stratification",
             "target_units":"atc"
         }
     )
@@ -92,11 +87,95 @@ def main():
     print(estimate_atc)
     print("Causal Estimate is " + str(estimate_atc.value))
     # # IV. Refute the obtained estimate using multiple robustness checks.
-    # refute_results = time_func(model.refute_estimate, 
-    #                         {
-    #                         "estimand":identified_estimand, 
-    #                         "estimate": estimate,
-    #                         "method_name":"random_common_cause"
-    #                         }
-    #                 )
+    
+    res_random = time_func(model.refute_estimate, 
+                            {
+                            "estimand":identified_estimand, 
+                            "estimate": estimate_ate,
+                            "method_name":"random_common_cause",
+                            "show_progress_bar":True,
+                            "random_seed": RANDOM_SEED,
+                            "n_jobs": WORKERS
+                            }
+                    )
+    print(res_random)
+        
+    res_placebo = time_func(model.refute_estimate, 
+                            {
+                            "estimand":identified_estimand, 
+                            "estimate": estimate_ate,
+                            "method_name":"placebo_treatment_refuter",
+                            "show_progress_bar":True,
+                            "placebo_type":"permute",
+                            "random_seed": RANDOM_SEED,
+                            "n_jobs": WORKERS
+                            }
+                    )
+    print(res_placebo)
+
+    res_subset = time_func(model.refute_estimate, 
+                        {
+                        "estimand":identified_estimand, 
+                        "estimate": estimate_ate,
+                        "method_name":"data_subset_refuter",
+                        "show_progress_bar":True,
+                        "subset_fraction":0.9,
+                        "random_seed": RANDOM_SEED,
+                        "n_jobs": WORKERS
+                        }
+                )
+    print(res_subset)
+
+    
+    res_unobserved = time_func(model.refute_estimate, 
+                        {
+                        "estimand":identified_estimand, 
+                        "estimate": estimate_ate,
+                        "method_name":"add_unobserved_common_cause",
+                        "confounders_effect_on_treatment": "binary_flip",
+                        "confounders_effect_on_outcome": "linear",
+                        "effect_strength_on_treatment":0.01,
+                        "effect_strength_on_outcome":0.02,
+                        "show_progress_bar":True,
+                        "random_seed": RANDOM_SEED,
+                        "n_jobs": WORKERS
+                        }
+                )
+    print(res_unobserved)
+
+    res_unobserved_range = time_func(model.refute_estimate, 
+                        {
+                        "estimand":identified_estimand, 
+                        "estimate": estimate_ate,
+                        "method_name":"add_unobserved_common_cause",
+                        "confounders_effect_on_treatment": "binary_flip",
+                        "confounders_effect_on_outcome": "linear",
+                        "effect_strength_on_treatment":[0.001, 0.005, 0.01, 0.02],
+                        "effect_strength_on_outcome":0.01,
+                        "show_progress_bar":True,
+                        "random_seed": RANDOM_SEED,
+                        "n_jobs": WORKERS
+                        }
+                )
+    print(res_unobserved_range)
+
+    res_unobserved_drange = time_func(model.refute_estimate, 
+                        {
+                        "estimand":identified_estimand, 
+                        "estimate": estimate_ate,
+                        "method_name":"add_unobserved_common_cause",
+                        "confounders_effect_on_treatment": "binary_flip",
+                        "confounders_effect_on_outcome": "linear",
+                        "effect_strength_on_treatment":np.linspace(0.001, 0.1, 20),
+                        "effect_strength_on_outcome":np.linspace(0.001, 0.1, 20),
+                        "show_progress_bar":True,
+                        "random_seed": RANDOM_SEED,
+                        "n_jobs": WORKERS
+                        }
+                )
+    print(res_unobserved_drange)
+
+    
+
                             
+    
