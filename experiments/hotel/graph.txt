@@ -1,0 +1,34 @@
+digraph {
+different_room_assigned[label="Different Room Assigned"];
+is_canceled[label="Booking Cancelled"];
+booking_changes[label="Booking Changes"];
+previous_bookings_not_canceled[label="Previous Booking Retentions"];
+days_in_waiting_list[label="Days in Waitlist"];
+lead_time[label="Lead Time"];
+market_segment[label="Market Segment"];
+country[label="Country"];
+U[label="Unobserved Confounders",observed="no"];
+is_repeated_guest;
+total_stay;
+guests;
+meal;
+hotel;
+U->{different_room_assigned,required_car_parking_spaces,guests,total_stay,total_of_special_requests};
+market_segment -> lead_time;
+lead_time->is_canceled; country -> lead_time;
+different_room_assigned -> is_canceled;
+country->meal;
+lead_time -> days_in_waiting_list;
+days_in_waiting_list ->{is_canceled,different_room_assigned};
+previous_bookings_not_canceled -> is_canceled;
+previous_bookings_not_canceled -> is_repeated_guest;
+is_repeated_guest -> {different_room_assigned,is_canceled};
+total_stay -> is_canceled;
+guests -> is_canceled;
+booking_changes -> different_room_assigned; booking_changes -> is_canceled;
+hotel -> {different_room_assigned,is_canceled};
+required_car_parking_spaces -> is_canceled;
+total_of_special_requests -> {booking_changes,is_canceled};
+country->{hotel, required_car_parking_spaces,total_of_special_requests};
+market_segment->{hotel, required_car_parking_spaces,total_of_special_requests};
+}
